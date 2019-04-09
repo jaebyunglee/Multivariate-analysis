@@ -1,0 +1,39 @@
+rm(list=ls())
+
+###pca function###
+PCA.fun = function(x){
+  cor = cor(x)
+  pos.vec = eigen(cor)[[1]]>1
+  n.pca.vec = sum(pos.vec)
+  cov = cov(x)
+  PCA.mat = eigen(cov)[[2]][,pos.vec]
+  v = list(n.pca.vec,PCA.mat) ;names(v) = c("number of PC","coefficient")
+  return(v)
+}
+
+#data
+x1 = c(26,46,57,36,57, 26,58,37,36,56, 78,95,88,90,52,56)
+x2 = c(35,74,73,73,62, 22,67,34,22,42, 65,88,90,85,46,66)
+x3 = c(35,76,38,69,25, 25,87,79,36,26, 22,36,58,36,25,44)
+x4 = c(45,89,54,55,33, 45,67,89,47,36, 40,56,68,45,37,56)
+x5 = c(1,2,2,1,2, 1,2,1,1,1, 2,2,2,1,1,2)
+x6 = c(1,1,1,1,1, 1,1,1,2,2, 2,2,2,2,2,2)
+
+xx = cbind(x1,x2,x3,x4)
+colnames(xx) = c("援??뼱","?쁺?뼱","?닔?븰","怨쇳븰")
+rownames(xx) = seq(c(1:16))
+
+xx2 = cbind(x1,x2,x5,x6)
+colnames(xx2) = c("援??뼱","?쁺?뼱","蹂닿컯","?꽦蹂?")
+rownames(xx2) = c(1:16)
+
+#compare prcomp with PCA.fun 1
+pp = prcomp(xx)
+pp
+PCA.fun(xx)
+
+#compare prcomp with PCA.fun 2
+pp2 = prcomp(xx2)
+pp2
+PCA.fun(xx2)
+

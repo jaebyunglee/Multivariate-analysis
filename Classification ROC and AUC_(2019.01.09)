@@ -1,0 +1,140 @@
+rm(list=ls())
+
+library(MASS) #lda,qda
+library(biotools) #boxM
+library(klaR) #sknn
+library(class) #knn
+library(kernlab) #ksvm
+library(ROCR) #ROC
+library(Epi) # ROC
+library(e1071) #SVM
+
+set.seed(1234)
+##############    data    ###############
+mydata = read.csv("https://stats.idre.ucla.edu/stat/data/binary.csv")
+head(mydata)
+str(mydata)
+mydata[,4] = as.factor(mydata[,4])
+train = mydata[1:200,]
+test = mydata[201:400,]
+par(mfrow=c(1,2))
+#############   logistic   ##############
+fit = glm(admit~gre+gpa+rank,data=train,family="binomial")
+summary(fit)
+hy.vec = predict(fit,train[,-1],type = "response")
+hy.vec = ifelse(hy.vec>0.5,1,0)
+t = table(train$admit,hy.vec)
+1-sum(diag(t))/sum(t)
+#ROC & AUC
+p = predict(fit,test,type="response")
+pr = prediction(p,test$admit)
+prf = performance(pr,measure = "tpr", x.measure="fpr")
+plot(prf)
+ROC(test = p, stat = test$admit,plot = "ROC" , main = "logistic")
+auc = performance(pr,measure = "auc")
+auc@y.values[[1]]
+sum(ifelse(p>0.5,1,0)==test$admit)/200
+logit.c.mat = matrix(c(prf@alpha.values[[1]],prf@y.values[[1]],prf@x.values[[1]]),199,3)
+colnames(logit.c.mat)=c("classifier","sensitivity","1-specificity")
+
+#ROC graphics
+roc.mat = matrix(0,100,3)
+c.mat = matrix(seq(0.01,1,0.01),100,1)
+true.mat = matrix(c(test$admit),200,1)
+
+for(i in 1:100){
+  h.mat = matrix(c(ifelse(p>c.mat[i,],1,0)),200,1)
+  true.h.mat = cbind(true.mat,h.mat)
+  sensitivity = sum(rowSums(true.h.mat)==2)/sum(test$admit==1)
+  specificity = sum(rowSums(true.h.mat)==0)/sum(test$admit==0)
+  roc.mat[i,1] = c.mat[i,]
+  roc.mat[i,2] = sensitivity 
+  roc.mat[i,3] = 1-specificity
+}
+par(mfrow = c(1,3))
+plot(prf)
+plot(roc.mat[,3],roc.mat[,2],type="l", xlab = "1-specifictiy", ylab = "sensitivity")
+plot(prf); lines(roc.mat[,3],roc.mat[,2],col = "red")
+
+
+
+
+############   lda  ###############
+par(mfrow=c(1,2))
+ld = lda(factor(admit)~gre+gpa+rank,data=train)
+sum(predict(ld)$class==train$admit)/200
+#ROC & AUC
+pld = predict(ld,test,type="response")
+prld = prediction(pld$posterior[,2],test$admit)
+prfld = performance(prld,measure = "tpr", x.measure="fpr")
+plot(prfld)
+ROC(test = pld$posterior[,2], stat = test$admit,plot = "ROC" , main = "lda")
+aucld = performance(prld,measure = "auc")
+aucld@y.values[[1]]
+lda.c.mat = matrix(c(prfld@alpha.values[[1]],prfld@y.values[[1]],prfld@x.values[[1]]),199,3)
+colnames(lda.c.mat)=c("classifier","sensitivity","1-specificity")
+
+
+############   qda  ###############
+par(mfrow=c(1,2))
+qd = qda(factor(admit)~gre+gpa+factor(rank),data=train)
+sum(predict(qd)$class==train$admit)/200
+#ROC & AUC
+pqd = predict(qd,test,type="response")
+prqd = prediction(pqd$posterior[,2],test$admit)
+prfqd = performance(prqd,measure = "tpr", x.measure="fpr")
+plot(prfqd)
+ROC(test = pqd$posterior[,2], stat = test$admit,plot = "ROC" , main = "qda")
+aucqd = performance(prqd,measure = "auc")
+aucqd@y.values[[1]]
+qda.c.mat = matrix(c(prfqd@alpha.values[[1]],prfqd@y.values[[1]],prfqd@x.values[[1]]),199,3)
+colnames(qda.c.mat)=c("classifier","sensitivity","1-specificity")
+
+
+############   knn  ###############
+par(mfrow=c(1,2))
+sk = sknn(factor(admit)~gre+gpa+factor(rank),data = train,kn=3)
+predict(sk)
+psk = predict(sk,test,type="response")
+prsk = prediction(psk$posterior[,2],test$admit)
+prfsk = performance(prsk,measure = "tpr",x.measure = "fpr")
+plot(prfsk)
+ROC(test = psk$posterior[,2], stat = test$admit,plot = "ROC" , main = "knn")
+aucsk = performance(prsk,measure = "auc")
+aucsk@y.values[[1]]
+sknn.c.mat = matrix(c(prfsk@alpha.values[[1]],prfsk@y.values[[1]],prfsk@x.values[[1]]),5,3)
+colnames(sknn.c.mat)=c("classifier","sensitivity","1-specificity")
+
+
+############   NaiveBayes  ###############
+par(mfrow=c(1,2))
+nb = NaiveBayes(train[,-1],factor(train[,1]))
+#ROC & AUC
+pnb = predict(nb,test,prob=T)
+prnb = prediction(pnb$posterior[,2],test$admit)
+prfnb = performance(prnb,measure = "tpr", x.measure = "fpr")
+plot(prfnb)
+ROC(test = pnb$posterior[,2], stat = test$admit,plot = "ROC" , main = "NaiveBayes")
+aucnb = performance(prnb, measure = "auc")
+aucnb@y.values[[1]]
+nb.c.mat = matrix(c(prfnb@alpha.values[[1]],prfnb@y.values[[1]],prfnb@x.values[[1]]),199,3)
+colnames(nb.c.mat)=c("classifier","sensitivity","1-specificity")
+
+
+############   svm  ############
+par(mfrow=c(1,2))
+tuned = tune.svm(admit~gre+gpa+rank,data=train,gamma = 10^(-6:-1), cost = 10^(1:2))
+smr = summary(tuned)
+s = svm(factor(admit)~gre+gpa+rank, data=train, gamma=0.1, cost=100, probability=T)
+#ROC & AUC
+ps = predict(s,test,prob=T)
+ps.prob = attr(ps,"probabilities")[,2]
+prs = prediction(ps.prob,test$admit)
+prfs = performance(prs,measure = "tpr", x.measure = "fpr")
+plot(prfs)
+ROC(test = ps.prob, stat = test$admit,plot = "ROC" , main = "svm")
+aucks = performance(prs , measure = "auc")
+aucks@y.values[[1]]
+svm.c.mat = matrix(c(prfs@alpha.values[[1]],prfs@y.values[[1]],prfs@x.values[[1]]),199,3)
+colnames(svm.c.mat)=c("classifier","sensitivity","1-specificity")
+

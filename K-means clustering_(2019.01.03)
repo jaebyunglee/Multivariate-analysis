@@ -1,0 +1,38 @@
+rm(list=ls())
+install.packages("caret")
+install.packages("NbClust")
+library(caret)
+library(NbClust)
+library(gridExtra)
+
+
+data = iris
+id = createDataPartition(y = data$Species, p = 0.7 , list=F)
+training <- iris[id,]
+test <- iris[-id,]
+training.data = scale(training[,-5]) # data scaling
+test.data = scale(test[,-5]) # data scaling
+
+
+# number of cluster
+nc = NbClust(training.data,min.nc=2,max.nc=15,method="kmeans")
+# k-menas clustering
+data.kmeans = kmeans(training.data,centers = 3, iter.max = 10000)
+training$cluster = as.factor(data.kmeans$cluster)
+# compare cluster with Species - training
+p1 = qplot(Petal.Width, Petal.Length, color = cluster, data = training)
+p2 = qplot(Petal.Width, Petal.Length, color = Species, data = training)
+grid.arrange(p1,p2,nrow=1)
+table(training$Species,training$cluster)
+# fit training model
+modFit <- train(x = training.data, 
+                y = training$cluster,
+                method = "rpart")
+
+test$cluster = predict(modFit,test.data)
+
+# compare cluster with Species - test
+p3 = qplot(Petal.Width, Petal.Length, color = cluster, data = test)
+p4 = qplot(Petal.Width, Petal.Length, color = Species, data = test)
+grid.arrange(p3,p4,nrow=1)
+table(test$Species,test$cluster)

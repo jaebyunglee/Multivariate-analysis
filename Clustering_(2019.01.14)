@@ -1,0 +1,90 @@
+rm(list=ls())
+library(cluster) #pam
+library(clValid) # clustering evaluation
+library(NbClust) # number of cluster
+library(flexclust) #comPart,randindex
+#data
+measure <- structure(list(V1 = 1:20, 
+                          V2 = c(34L, 37L, 38L, 36L, 38L, 43L,40L, 38L, 40L, 41L, 36L, 36L, 34L, 33L, 36L, 37L, 34L, 36L, 38L,35L), 
+                          V3 = c(30L, 32L, 30L, 33L, 29L, 32L, 33L, 30L, 30L, 32L,24L, 25L, 24L, 22L, 26L, 26L, 25L, 26L, 28L, 23L), 
+                          V4 = c(32L,37L, 36L, 39L, 33L, 38L, 42L, 40L, 37L, 39L, 35L, 37L, 37L, 34L,38L, 37L, 38L, 37L, 40L, 35L)),
+                     .Names = c("V1", "V2", "V3", "V4"), 
+                     class = "data.frame", 
+                     row.names = c(NA, -20L))
+measure <- measure[,-1]
+names(measure) <- c("chest", "waist", "hips")
+measure$gender <- gl(2, 10)
+levels(measure$gender) <- c("male", "female")
+head(measure)
+
+
+
+
+
+
+
+##################### Hierarchical cluster
+#dist matrix
+dm <- dist(measure[, c("chest", "waist", "hips")])
+round(dm, 2)
+
+#number of cluster
+nc = NbClust(measure[,-4],distance="euclidean",min.nc=2,max.nc=15,method="average")
+names(nc)
+k = table(nc$Best.partition)
+k = length(k)
+#grapichs
+cs <- hclust(dm, method = "average")
+par(mfrow=c(1,1))
+plot(cs, main = "average")
+rect.hclust(cs,k=k)
+cutree(cs,k=k); nc$Best.partition #cluster value
+
+
+
+
+
+#####################Non - Hierarchical cluster - kmeans
+ncks = NbClust(measure[,-4],distance="euclidean",min.nc=2,max.nc=15,method="kmeans")
+kk = table(ncks$Best.partition)
+kk = length(kk)
+ks = kmeans(measure[,-4],centers = kk)
+ks$cluster
+
+
+
+#####################Partitioning Aruoud Medoids - pam
+fit.pam = pam(measure[,-4],kk,metric="euclidean", stand=T)
+summary(fit.pam)
+fit.pam$clustering
+par(mfrow=c(1,1))
+clusplot(fit.pam, main="Bivariate Cluster Plot")
+
+
+
+
+#####################Clustering evaluation
+
+######which method are best?("hierarchical","kmeans","pam")
+#connectivity , Dunn index, Silhouette
+#http://www.sthda.com/english/wiki/print.php?id=243
+head(measure[,-4])
+exprs = measure[,-4]
+rownames(exprs) = 1:nrow(exprs)
+head(exprs)
+clmethods = c("hierarchical","kmeans","pam")
+intern = clValid(exprs,nClust=2:6,
+                 clMethods = clmethods, validation = "internal")
+summary(intern)
+par(mfrow=c(1,1))
+plot(intern)
+
+#randIndex
+comPart(measure[,4],nc$Best.partition,type=c("RI","ARI"))
+comPart(measure[,4],ks$cluster,type=c("RI","ARI"))
+comPart(measure[,4],fit.pam$clustering,type=c("RI","ARI"))
+
+#randindex example
+a = c(1,1,1,2,2,2)
+b = c(1,1,2,2,2,3)
+comPart(a,b,type=c("RI","ARI"))
